@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Laboratorio de controles · Visual C#</title>
+<style>
+:root{--bg:#EEF0F4;--ink:#1B1F2A;--pur:#5C2D91;--blu:#007ACC;--form:#F0F0F0;--code:#1E1E1E;--line:#C9CDD6}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--pur);color:#fff;padding:18px 24px}
+h1{margin:0;font-size:22px;font-weight:600}
+header p{margin:4px 0 0;opacity:.85;font-size:14px}
+nav{display:flex;flex-wrap:wrap;gap:6px;padding:12px 24px;background:#fff;border-bottom:1px solid var(--line)}
+nav button{font:inherit;padding:6px 12px;border:1px solid var(--line);background:#fff;border-radius:3px;cursor:pointer}
+nav button[aria-selected=true]{background:var(--blu);color:#fff;border-color:var(--blu)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--blu);outline-offset:1px}
+main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;padding:20px 24px;max-width:1200px;margin:auto}
+@media(max-width:820px){main{grid-template-columns:1fr}}
+h2{font-size:15px;margin:16px 0 6px;font-weight:600}
+h2:first-child{margin-top:0}
+.intro{grid-column:1/-1;max-width:78ch}
+.intro p{margin:0 0 6px}
+#reto{background:#FFF4CC;border-left:4px solid #E0A800;padding:6px 10px}
+.win{position:relative;border:1px solid #6b7280;background:var(--form);box-shadow:0 2px 8px #0003}
+.tb{background:#fff;border-bottom:1px solid var(--line);padding:6px 10px;font-size:13px;display:flex;justify-content:space-between}
+.body{padding:16px;min-height:240px;font:13px "Segoe UI",Tahoma,sans-serif}
+.body p{margin:0 0 10px}
+.body button{font:inherit;background:#E1E1E1;border:1px solid #ADADAD;padding:3px 12px;cursor:pointer}
+.body button:hover{background:#E5F1FB;border-color:#0078D7}
+.body button:disabled{color:#888;background:#F0F0F0;border-color:#CCC;cursor:default}
+.body input:not([type=checkbox]):not([type=radio]),.body select{font:inherit;border:1px solid #7A7A7A;padding:2px 4px;background:#fff}
+.body fieldset{border:1px solid #bbb;margin:0 0 10px}
+.pb{height:22px;border:1px solid #BCBCBC;background:#E6E6E6;margin-bottom:8px}
+.pb i{display:block;height:100%;width:0;background:#06B025;transition:width .2s}
+.dlg{position:absolute;inset:0;background:#0004;display:grid;place-items:center}
+.dlg div{background:#fff;border:1px solid #555;padding:14px 18px;min-width:220px;font-size:13px}
+.code{background:var(--code);color:#D4D4D4;font:13px/1.5 Consolas,"Cascadia Mono",monospace;padding:12px;border-radius:3px;overflow:auto}
+.code pre{margin:0 0 10px;padding:4px 8px;border-left:3px solid transparent;white-space:pre;transition:background .3s}
+.code pre.hit{border-left-color:#FFD54A;background:#2E2C18}
+.k{color:#569CD6}.t{color:#4EC9B0}.s{color:#CE9178}.c{color:#6A9955}.n{color:#B5CEA8}
+.hint{font-size:13px;color:#555;margin:6px 0 0}
+table{border-collapse:collapse;font:13px Consolas,monospace;width:100%;background:#fff}
+td{border:1px solid var(--line);padding:2px 8px}
+td:first-child{color:var(--pur);width:55%}
+ul#log{margin:0;padding:8px 8px 8px 24px;background:#fff;border:1px solid var(--line);font:13px Consolas,monospace;min-height:40px}
+footer{max-width:1200px;margin:0 auto;padding:0 24px 24px;font-size:13px;color:#555}
+</style></head>
+<body>
+<header><h1>Laboratorio de controles · Visual C#</h1>
+<p>Fundamentos de Programación · Windows Forms. Usa los controles y mira qué código C# se ejecuta.</p></header>
+<nav id="nav" aria-label="Controles"></nav>
+<main>
+<section class="intro"><p id="intro"></p><p id="reto"></p></section>
+<section>
+<h2>Formulario (lo que ve el usuario)</h2>
+<div class="win"><div class="tb"><span>Form1</span><span>–  ☐  ✕</span></div><div class="body" id="form"></div></div>
+<h2>Propiedades en vivo</h2><table id="props"></table>
+<h2>Eventos disparados</h2><ul id="log"></ul>
+</section>
+<section>
+<h2>Código C# (se resalta el método que se ejecuta)</h2>
+<div class="code" id="code"></div>
+<p class="hint">Los controles aquí son simulaciones en HTML. En Visual Studio escribirías este mismo código dentro del evento (doble clic sobre el control).</p>
+</section>
+</main>
+<footer>Material de apoyo para Fundamentos de Programación.</footer>
+<script>
+const $=(s,e=document)=>e.querySelector(s);
+const el=(t,p={},h="")=>{const e=document.createElement(t);Object.assign(e,p);e.innerHTML=h;return e};
+const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const KW="private|void|object|string|int|double|bool|if|else|for|new|true|false|return|out";
+const TY="EventArgs|MessageBox|Convert|Timer";
+const RX=new RegExp('(//.*)|("(?:[^"\\\\]|\\\\.)*")|\\b('+KW+')\\b|\\b('+TY+')\\b|\\b(\\d+)\\b','g');
+const hl=t=>esc(t).replace(RX,(m,c,s,k,ty,n)=>c?`<span class=c>${c}</span>`:s?`<span class=s>${s}</span>`:k?`<span class=k>${k}</span>`:ty?`<span class=t>${ty}</span>`:`<span class=n>${n}</span>`);
+let TM;
+const api={
+ log(ev,...x){const L=$("#log");L.prepend(el("li",{},new Date().toLocaleTimeString("es-MX")+"  "+ev));while(L.children.length>6)L.lastChild.remove();
+  [ev,...x].forEach(n=>document.querySelectorAll(`#code pre[data-ev="${n}"]`).forEach(p=>{p.classList.add("hit");setTimeout(()=>p.classList.remove("hit"),1400)}))},
+ set(o){$("#props").innerHTML=Object.entries(o).map(([k,v])=>`<tr><td>${k}</td><td>${esc(String(v))}</td></tr>`).join("")}
+};
+function msg(f,t){const d=el("div",{className:"dlg"},`<div><b>Error</b><p>${t}</p><button>Aceptar</button></div>`);$("button",d).onclick=()=>d.remove();f.parentNode.append(d);api.log("MessageBox.Show")}
+
+const D=[
+{n:"Label · TextBox · Button",
+intro:"Label muestra texto, TextBox recibe texto del usuario y Button ejecuta código cuando se hace clic (evento Click). Propiedad clave: Text.",
+reto:"Cambia el código para que el saludo salga en MAYÚSCULAS usando textBox1.Text.ToUpper().",
+code:[{ev:"button1_Click",text:`private void button1_Click(object sender, EventArgs e)
+{
+    label1.Text = "Hola, " + textBox1.Text;
+}`},{ev:"button2_Click",text:`private void button2_Click(object sender, EventArgs e)
+{
+    textBox1.Text = "";
+    label1.Text = "Escribe tu nombre";
+}`},{ev:"textBox1_TextChanged",text:`private void textBox1_TextChanged(object sender, EventArgs e)
+{
+    // se ejecuta con cada letra que escribes
+}`},{ev:"props",text:`// Propiedades que también se cambian por código:
+button1.Enabled = false;
+label1.Visible = false;`}],
+build(f,a){
+ f.innerHTML=`<p><label>Nombre: <input id=t value="Ana"></label></p><p><button id=b1>Saludar</button> <button id=b2>Limpiar</button></p><p id=l style="font-size:18px">Escribe tu nombre</p><hr><p><label><input type=checkbox id=en checked> button1.Enabled</label> &nbsp; <label><input type=checkbox id=vi checked> label1.Visible</label></p>`;
+ const t=$("#t",f),b=$("#b1",f),l=$("#l",f);
+ const up=()=>a.set({"textBox1.Text":t.value,"label1.Text":l.textContent,"button1.Enabled":!b.disabled,"label1.Visible":!l.hidden});
+ b.onclick=()=>{l.textContent="Hola, "+t.value;a.log("button1_Click");up()};
+ $("#b2",f).onclick=()=>{t.value="";l.textContent="Escribe tu nombre";a.log("button2_Click");up()};
+ t.oninput=()=>{a.log("textBox1_TextChanged");up()};
+ $("#en",f).onchange=e=>{b.disabled=!e.target.checked;a.log("props");up()};
+ $("#vi",f).onchange=e=>{l.hidden=!e.target.checked;a.log("props");up()};
+ up()}},
+
+{n:"CheckBox",
+intro:"CheckBox permite marcar varias opciones a la vez. Propiedad clave: Checked (true o false). Evento: CheckedChanged.",
+reto:"Agrega un cuarto CheckBox (Tamal, $25) y súmalo al total.",
+code:[{ev:"CalcularTotal",text:`private void CalcularTotal()
+{
+    int total = 0;
+    if (chkPan.Checked) total += 20;
+    if (chkCafe.Checked) total += 35;
+    if (chkJugo.Checked) total += 28;
+    lblTotal.Text = "Total: $" + total;
+}`},{ev:"chk_CheckedChanged",text:`private void chk_CheckedChanged(object sender, EventArgs e)
+{
+    CalcularTotal();
+}`}],
+build(f,a){
+ f.innerHTML=`<p><b>Desayuno</b></p><p><label><input type=checkbox data-p=20> Pan $20</label></p><p><label><input type=checkbox data-p=35> Café $35</label></p><p><label><input type=checkbox data-p=28> Jugo $28</label></p><p id=tt style="font-size:16px">Total: $0</p>`;
+ const cs=[...f.querySelectorAll("input")],tt=$("#tt",f);
+ const up=()=>{const tot=cs.reduce((s,c)=>s+(c.checked?+c.dataset.p:0),0);tt.textContent="Total: $"+tot;
+  a.set({chkPan:cs[0].checked,chkCafe:cs[1].checked,chkJugo:cs[2].checked,"lblTotal.Text":tt.textContent})};
+ cs.forEach(c=>c.onchange=()=>{a.log("chk_CheckedChanged","CalcularTotal");up()});up()}},
+
+{n:"RadioButton",
+intro:"RadioButton permite elegir solo UNA opción dentro del mismo contenedor (por ejemplo un GroupBox). También usa Checked.",
+reto:"Agrega la opción Extra grande ($75) con else if.",
+code:[{ev:"rdb_CheckedChanged",text:`private void rdb_CheckedChanged(object sender, EventArgs e)
+{
+    if (rdbChico.Checked)
+        lblPrecio.Text = "$30";
+    else if (rdbMediano.Checked)
+        lblPrecio.Text = "$45";
+    else
+        lblPrecio.Text = "$60";
+}`}],
+build(f,a){
+ f.innerHTML=`<fieldset><legend>Tamaño de pizza</legend><p><label><input type=radio name=r value=30 checked> Chico</label></p><p><label><input type=radio name=r value=45> Mediano</label></p><p><label><input type=radio name=r value=60> Grande</label></p></fieldset><p id=pr style="font-size:16px"></p>`;
+ const rs=[...f.querySelectorAll("input")],pr=$("#pr",f);
+ const up=()=>{pr.textContent="Precio: $"+rs.find(r=>r.checked).value;a.set({rdbChico:rs[0].checked,rdbMediano:rs[1].checked,rdbGrande:rs[2].checked,"lblPrecio.Text":pr.textContent})};
+ rs.forEach(r=>r.onchange=()=>{a.log("rdb_CheckedChanged");up()});up()}},
+
+{n:"ComboBox",
+intro:"ComboBox despliega una lista de opciones. Propiedades clave: SelectedIndex (empieza en 0, vale -1 si no hay selección), SelectedItem, Text e Items.",
+reto:"Evita agregar carreras repetidas con Items.Contains().",
+code:[{ev:"comboBox1_SelectedIndexChanged",text:`private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+{
+    lblInfo.Text = "Índice: " + comboBox1.SelectedIndex;
+    lblInfo.Text += " | Texto: " + comboBox1.Text;
+}`},{ev:"btnAgregar_Click",text:`private void btnAgregar_Click(object sender, EventArgs e)
+{
+    comboBox1.Items.Add(txtNueva.Text);
+}`}],
+build(f,a){
+ f.innerHTML=`<p>Carrera: <select id=c style="width:170px"><option>Sistemas<option>Industrial<option>Electrónica<option>Mecatrónica</select></p><p id=i></p><hr><p>Nueva carrera: <input id=t style="width:110px"> <button id=b>Agregar</button></p>`;
+ const c=$("#c",f),i=$("#i",f),t=$("#t",f);c.selectedIndex=-1;
+ const up=()=>{i.textContent=c.selectedIndex<0?"Sin selección":"Índice: "+c.selectedIndex+" | Texto: "+c.value;
+  a.set({"comboBox1.SelectedIndex":c.selectedIndex,"comboBox1.Text":c.selectedIndex<0?"":c.value,"comboBox1.Items.Count":c.options.length})};
+ c.onchange=()=>{a.log("comboBox1_SelectedIndexChanged");up()};
+ $("#b",f).onclick=()=>{if(t.value.trim()){c.add(new Option(t.value));t.value=""}a.log("btnAgregar_Click");up()};up()}},
+
+{n:"ListBox",
+intro:"ListBox muestra una lista visible. Items.Add agrega, Items.RemoveAt quita por posición, Items.Clear vacía y Items.Count cuenta.",
+reto:"Evita agregar un elemento vacío con if (textBox1.Text != \"\").",
+code:[{ev:"btnAgregar_Click",text:`private void btnAgregar_Click(object sender, EventArgs e)
+{
+    listBox1.Items.Add(textBox1.Text);
+    lblTotal.Text = "Elementos: " + listBox1.Items.Count;
+}`},{ev:"btnQuitar_Click",text:`private void btnQuitar_Click(object sender, EventArgs e)
+{
+    if (listBox1.SelectedIndex != -1)
+        listBox1.Items.RemoveAt(listBox1.SelectedIndex);
+}`},{ev:"btnLimpiar_Click",text:`private void btnLimpiar_Click(object sender, EventArgs e)
+{
+    listBox1.Items.Clear();
+}`}],
+build(f,a){
+ f.innerHTML=`<p><input id=t value="Manzana" style="width:120px"> <button id=a1>Agregar</button></p><select id=l size=6 style="width:200px"><option>Pera<option>Uva</select><p style="margin-top:8px"><button id=q>Quitar seleccionado</button> <button id=x>Limpiar</button></p>`;
+ const l=$("#l",f),t=$("#t",f);
+ const up=()=>a.set({"listBox1.Items.Count":l.options.length,"listBox1.SelectedIndex":l.selectedIndex});
+ $("#a1",f).onclick=()=>{if(t.value.trim())l.add(new Option(t.value));a.log("btnAgregar_Click");up()};
+ $("#q",f).onclick=()=>{if(l.selectedIndex!=-1)l.remove(l.selectedIndex);a.log("btnQuitar_Click");up()};
+ $("#x",f).onclick=()=>{l.innerHTML="";a.log("btnLimpiar_Click");up()};
+ l.onchange=up;up()}},
+
+{n:"NumericUpDown · for",
+intro:"NumericUpDown captura números sin que el usuario escriba letras. Su propiedad Value es decimal, por eso se convierte con (int). Aquí el ciclo for llena la tabla paso a paso.",
+reto:"Haz que el ciclo llegue hasta 12 en lugar de 10.",
+code:[{ev:"numericUpDown1_ValueChanged",text:`// Propiedades en el diseñador:
+// Minimum = 1   Maximum = 20   Value = 5`},{ev:"btnTabla_Click",text:`private void btnTabla_Click(object sender, EventArgs e)
+{
+    int n = (int)numericUpDown1.Value;
+    listBox1.Items.Clear();
+    for (int i = 1; i <= 10; i++)
+    {
+        listBox1.Items.Add(n + " x " + i + " = " + (n * i));
+    }
+}`}],
+build(f,a){
+ f.innerHTML=`<p>Tabla del: <input type=number id=n value=5 min=1 max=20 style="width:60px"> <button id=b>Generar tabla</button></p><select id=l size=10 style="width:180px"></select>`;
+ const n=$("#n",f),l=$("#l",f);
+ n.oninput=()=>{a.log("numericUpDown1_ValueChanged");a.set({"numericUpDown1.Value":n.value})};
+ $("#b",f).onclick=()=>{clearInterval(TM);l.innerHTML="";let i=0;a.log("btnTabla_Click");
+  TM=setInterval(()=>{i++;l.add(new Option(n.value+" x "+i+" = "+n.value*i));a.set({n:n.value,i:i,"listBox1.Items.Count":i});if(i>=10)clearInterval(TM)},120)};
+ a.set({"numericUpDown1.Value":n.value})}},
+
+{n:"Timer · ProgressBar",
+intro:"Timer ejecuta código cada cierto tiempo (Interval, en milisegundos) con el evento Tick, hasta que lo detengas con Stop(). ProgressBar muestra avance con Value de 0 a 100.",
+reto:"Haz que la barra avance de 5 en 5 y que al llegar a 100 aparezca un MessageBox.",
+code:[{ev:"btnIniciar_Click",text:`private void btnIniciar_Click(object sender, EventArgs e)
+{
+    timer1.Interval = 500;
+    timer1.Start();
+}`},{ev:"timer1_Tick",text:`private void timer1_Tick(object sender, EventArgs e)
+{
+    progressBar1.Value += 10;
+    lblPorc.Text = progressBar1.Value + "%";
+    if (progressBar1.Value >= 100)
+        timer1.Stop();
+}`},{ev:"btnDetener_Click",text:`private void btnDetener_Click(object sender, EventArgs e)
+{
+    timer1.Stop();
+}`}],
+build(f,a){
+ f.innerHTML=`<p><button id=s>Iniciar</button> <button id=p>Detener</button> <button id=r>Reiniciar</button></p><p>Interval: <select id=iv><option>1000<option selected>500<option>250<option>100</select> ms</p><div class=pb><i id=bar></i></div><p id=pc></p>`;
+ let v=0,on=false;const bar=$("#bar",f),pc=$("#pc",f),iv=$("#iv",f);
+ const ui=()=>{bar.style.width=v+"%";pc.textContent=v+"%";a.set({"progressBar1.Value":v,"timer1.Enabled":on,"timer1.Interval":iv.value})};
+ const stop=()=>{clearInterval(TM);on=false};
+ $("#s",f).onclick=()=>{a.log("btnIniciar_Click");if(on||v>=100)return;on=true;
+  TM=setInterval(()=>{v=Math.min(100,v+10);a.log("timer1_Tick");if(v>=100)stop();ui()},+iv.value);ui()};
+ $("#p",f).onclick=()=>{stop();a.log("btnDetener_Click");ui()};
+ $("#r",f).onclick=()=>{stop();v=0;ui()};ui()}},
+
+{n:"Calculadora · TryParse",
+intro:"Todo lo que escribe el usuario en un TextBox es texto (string). double.TryParse lo convierte a número y avisa si no se pudo. MessageBox.Show muestra mensajes. Prueba escribir letras o dividir entre 0.",
+reto:"Agrega el operador % (residuo) a la calculadora.",
+code:[{ev:"btnCalcular_Click",text:`private void btnCalcular_Click(object sender, EventArgs e)
+{
+    double a, b;
+    if (!double.TryParse(txtA.Text, out a) || !double.TryParse(txtB.Text, out b))
+    {
+        MessageBox.Show("Escribe solo números");
+        return;
+    }
+    if (cmbOp.Text == "+") lblRes.Text = "" + (a + b);
+    else if (cmbOp.Text == "-") lblRes.Text = "" + (a - b);
+    else if (cmbOp.Text == "*") lblRes.Text = "" + (a * b);
+    else if (b == 0) MessageBox.Show("No se puede dividir entre cero");
+    else lblRes.Text = "" + (a / b);
+}`}],
+build(f,a){
+ f.innerHTML=`<p><input id=x style="width:60px" value=8> <select id=o><option>+<option>-<option>*<option>/</select> <input id=y style="width:60px" value=2> <button id=b>Calcular</button></p><p id=r style="font-size:18px">Resultado: </p>`;
+ const x=$("#x",f),y=$("#y",f),o=$("#o",f),r=$("#r",f);
+ $("#b",f).onclick=()=>{a.log("btnCalcular_Click");const A=x.value.trim(),B=y.value.trim();
+  if(A===""||B===""||isNaN(A)||isNaN(B)){msg(f,"Escribe solo números");return}
+  const p=+A,q=+B,op=o.value;
+  if(op=="/"&&q==0){msg(f,"No se puede dividir entre cero");return}
+  r.textContent="Resultado: "+(op=="+"?p+q:op=="-"?p-q:op=="*"?p*q:p/q);
+  a.set({"txtA.Text":A,"cmbOp.Text":op,"txtB.Text":B,"lblRes.Text":r.textContent})};
+ a.set({"txtA.Text":x.value,"cmbOp.Text":o.value,"txtB.Text":y.value})}}
+];
+
+const nav=$("#nav");
+function show(i){
+ clearInterval(TM);const d=D[i];
+ [...nav.children].forEach((b,j)=>b.setAttribute("aria-selected",j==i));
+ $("#intro").textContent=d.intro;$("#reto").textContent="Reto: "+d.reto;
+ $("#code").innerHTML=d.code.map(c=>`<pre data-ev="${c.ev}">${hl(c.text)}</pre>`).join("");
+ $("#log").innerHTML="";$("#props").innerHTML="";$("#form").innerHTML="";
+ document.querySelectorAll(".dlg").forEach(x=>x.remove());
+ d.build($("#form"),api);
+}
+D.forEach((d,i)=>nav.append(el("button",{onclick:()=>show(i),type:"button"},d.n)));
+show(0);
+</script>
+</body></html>
